@@ -40,7 +40,3 @@ export const updateTaskSchema = z.object({
     .optional(),
 });
 
-export const loginSchema = z.object({
-  email: z.string().trim().min(1, 'Email is required').email('Invalid email'),
-  password: z.string().min(1, 'Password is required'),
-});
