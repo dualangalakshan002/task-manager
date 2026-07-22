@@ -1,28 +1,31 @@
 import { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
-import Navbar from '../components/Navbar';
+import { Layers, Clock, PlayCircle, CheckCircle2, AlertCircle, Plus, LogOut, Menu } from 'lucide-react';
+import Sidebar from '../components/Sidebar';
 import StatCard from '../components/StatCard';
-import TaskFilters from '../components/TaskFilters';
 import TaskTable from '../components/TaskTable';
+import TaskFilters from '../components/TaskFilters';
 import TaskFormModal from '../components/TaskFormModal';
+import MyTasksModal from '../components/MyTasksModal';
 import Spinner from '../components/Spinner';
 import { useDebounce } from '../hooks/useDebounce';
+import { useAuth } from '../context/AuthContext';
 import {
   fetchTasks, fetchStats, createTask, updateTask, deleteTask,
 } from '../api/tasks.api';
 
-const DEFAULT_FILTERS = { search: '', status: '', priority: '', sort: 'newest' };
-
 export default function DashboardPage() {
+  const { logout } = useAuth();
+
   const [stats, setStats] = useState(null);
   const [tasks, setTasks] = useState([]);
-  const [pagination, setPagination] = useState({ page: 1, totalPages: 1 });
-  const [filters, setFilters] = useState(DEFAULT_FILTERS);
-  const [page, setPage] = useState(1);
-
+  const [filters, setFilters] = useState({ search: '', status: '', priority: '', sort: 'newest' });
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [modalOpen, setModalOpen] = useState(false);
+
+  const [formOpen, setFormOpen] = useState(false);
+  const [myTasksOpen, setMyTasksOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
 
   const debouncedSearch = useDebounce(filters.search, 400);
@@ -43,28 +46,22 @@ export default function DashboardPage() {
         status: filters.status || undefined,
         priority: filters.priority || undefined,
         sort: filters.sort,
-        page,
-        limit: 10,
       });
       setTasks(res.data);
-      setPagination(res.pagination);
     } catch {
       toast.error('Failed to load tasks');
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, filters.status, filters.priority, filters.sort, page]);
+  }, [debouncedSearch, filters.status, filters.priority, filters.sort]);
 
   useEffect(() => { loadStats(); }, [loadStats]);
   useEffect(() => { loadTasks(); }, [loadTasks]);
 
-  // Reset to page 1 whenever a filter changes.
-  useEffect(() => { setPage(1); }, [debouncedSearch, filters.status, filters.priority, filters.sort]);
-
   const refresh = () => { loadTasks(); loadStats(); };
 
-  const handleCreate = () => { setEditingTask(null); setModalOpen(true); };
-  const handleEdit = (task) => { setEditingTask(task); setModalOpen(true); };
+  const openCreate = () => { setEditingTask(null); setFormOpen(true); };
+  const openEdit = (task) => { setEditingTask(task); setFormOpen(true); };
 
   const handleSubmit = async (form) => {
     setSubmitting(true);
@@ -83,7 +80,7 @@ export default function DashboardPage() {
         await createTask(payload);
         toast.success('Task created');
       }
-      setModalOpen(false);
+      setFormOpen(false);
       refresh();
     } catch (err) {
       const apiErrors = err.response?.data?.errors;
@@ -105,68 +102,86 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen">
-      <Navbar />
-      <main className="mx-auto max-w-5xl px-4 py-6">
-        {/* Dashboard stats */}
-        <section className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-          <StatCard label="Total" value={stats?.total ?? '-'} accent="text-gray-900 dark:text-white" />
-          <StatCard label="Pending" value={stats?.pending ?? '-'} accent="text-yellow-600" />
-          <StatCard label="In Progress" value={stats?.inProgress ?? '-'} accent="text-blue-600" />
-          <StatCard label="Completed" value={stats?.completed ?? '-'} accent="text-green-600" />
-          <StatCard label="Overdue" value={stats?.overdue ?? '-'} accent="text-red-600" />
+    <div className="flex min-h-screen bg-gray-50 dark:bg-gray-950">
+      <Sidebar
+        onMyTasks={() => setMyTasksOpen(true)}
+        onAddTask={openCreate}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
+
+      <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+        {/* Header */}
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex items-center">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="mr-3 lg:hidden"
+              aria-label="Open menu"
+            >
+              <Menu size={24} />
+            </button>
+            <div>
+              <h1 className="text-2xl font-bold">Dashboard</h1>
+              <p className="text-sm text-gray-500">Welcome back! Here's what's happening with your tasks.</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <button onClick={openCreate}
+              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 sm:flex-none">
+              <Plus size={18} /> Add New Task
+            </button>
+            <button onClick={logout}
+              className="flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">
+              <LogOut size={18} /> Logout
+            </button>
+          </div>
+        </div>
+
+        {/* Stat cards */}
+        <section className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          <StatCard label="Total Tasks" value={stats?.total ?? '-'} subtitle="All tasks in the system"
+            icon={Layers} iconColor="bg-blue-500/20 text-blue-500" barColor="bg-blue-500" />
+          <StatCard label="Pending" value={stats?.pending ?? '-'} subtitle="Tasks waiting to be done"
+            icon={Clock} iconColor="bg-yellow-500/20 text-yellow-500" barColor="bg-yellow-500" />
+          <StatCard label="In Progress" value={stats?.inProgress ?? '-'} subtitle="Tasks currently in progress"
+            icon={PlayCircle} iconColor="bg-teal-500/20 text-teal-500" barColor="bg-teal-500" />
+          <StatCard label="Completed" value={stats?.completed ?? '-'} subtitle="Tasks completed"
+            icon={CheckCircle2} iconColor="bg-green-500/20 text-green-500" barColor="bg-green-500" />
+          <StatCard label="Overdue" value={stats?.overdue ?? '-'} subtitle="Tasks past due date"
+            icon={AlertCircle} iconColor="bg-red-500/20 text-red-500" barColor="bg-red-500" />
         </section>
 
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Your Tasks</h2>
-          <button onClick={handleCreate}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
-            + New Task
-          </button>
+        {/* Filters + task list */}
+        <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700/60 dark:bg-gray-800/40">
+          <div className="mb-4">
+            <TaskFilters filters={filters} onChange={setFilters} />
+          </div>
+          {loading ? (
+            <Spinner label="Loading tasks..." />
+          ) : (
+            <TaskTable tasks={tasks} onEdit={openEdit} onDelete={handleDelete} />
+          )}
         </div>
-
-        <div className="mb-4">
-          <TaskFilters filters={filters} onChange={setFilters} />
-        </div>
-
-        {loading ? (
-          <Spinner label="Loading tasks..." />
-        ) : (
-          <>
-            <TaskTable tasks={tasks} onEdit={handleEdit} onDelete={handleDelete} />
-
-            {/* Pagination (bonus) */}
-            {pagination.totalPages > 1 && (
-              <div className="mt-4 flex items-center justify-center gap-2">
-                <button
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => p - 1)}
-                  className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm disabled:opacity-50 dark:border-gray-600"
-                >
-                  Previous
-                </button>
-                <span className="text-sm text-gray-500">
-                  Page {pagination.page} of {pagination.totalPages}
-                </span>
-                <button
-                  disabled={page >= pagination.totalPages}
-                  onClick={() => setPage((p) => p + 1)}
-                  className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm disabled:opacity-50 dark:border-gray-600"
-                >
-                  Next
-                </button>
-              </div>
-            )}
-          </>
-        )}
       </main>
 
+      {/* Popups */}
       <TaskFormModal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
+        open={formOpen}
+        onClose={() => setFormOpen(false)}
         onSubmit={handleSubmit}
         task={editingTask}
         submitting={submitting}
+      />
+
+      <MyTasksModal
+        open={myTasksOpen}
+        onClose={() => setMyTasksOpen(false)}
+        tasks={tasks}
+        filters={filters}
+        onFilterChange={setFilters}
+        onEdit={(task) => { setMyTasksOpen(false); openEdit(task); }}
+        onDelete={handleDelete}
       />
     </div>
   );
