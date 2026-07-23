@@ -50,7 +50,7 @@ export default function LoginPage() {
         </div>
 
         <h1 className="text-6xl font-bold leading-tight">
-          Analyze<br />
+          Manage<br />
           your <span className="text-blue-500">tasks</span>
         </h1>
 
@@ -91,6 +91,7 @@ export default function LoginPage() {
               <div className="relative">
                 <Mail size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
                 <input
+                  placeholder='example@test.com'
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   onKeyDown={onKeyDown}
@@ -105,6 +106,7 @@ export default function LoginPage() {
               <div className="relative">
                 <Lock size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
                 <input
+                  placeholder='password'
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}

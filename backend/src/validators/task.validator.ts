@@ -3,11 +3,16 @@ import { z } from 'zod';
 const priorityEnum = z.enum(['Low', 'Medium', 'High']);
 const statusEnum = z.enum(['Pending', 'In Progress', 'Completed']);
 
-// Compare as YYYY-MM-DD strings to avoid timezone shifts.
-// en-CA locale formats dates as YYYY-MM-DD.
+export const getTodayDateString = (): string => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const notInPast = (value: string) => {
-  const todayStr = new Date().toLocaleDateString('en-CA');
-  return value >= todayStr;
+  return value >= getTodayDateString();
 };
 
 export const createTaskSchema = z.object({
@@ -26,8 +31,5 @@ export const updateTaskSchema = z.object({
   description: z.string().trim().max(2000).optional().or(z.literal('')),
   priority: priorityEnum.optional(),
   status: statusEnum.optional(),
-  dueDate: z
-    .string()
-    .refine(notInPast, 'Due date cannot be earlier than today')
-    .optional(),
+  dueDate: z.string().min(1, 'Due date is required').optional(),
 });

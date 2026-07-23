@@ -2,6 +2,32 @@ import Badge from './Badge';
 import { STATUS_STYLES, PRIORITY_STYLES } from '../utils/constants';
 import { formatDate, isOverdue } from '../utils/format';
 
+function TaskDueDateDisplay({ task, prefix = '' }) {
+  const overdue = isOverdue(task);
+  return (
+    <span className={overdue ? 'font-medium text-red-600 dark:text-red-400' : ''}>
+      {prefix}{formatDate(task.dueDate)}
+      {overdue && ' (Overdue)'}
+    </span>
+  );
+}
+
+function TaskActions({ task, onEdit, onDelete, isMobile = false }) {
+  const btnClass = isMobile
+    ? 'text-sm text-blue-600 hover:underline dark:text-blue-400'
+    : 'mr-3 text-blue-600 hover:underline dark:text-blue-400';
+  const deleteBtnClass = isMobile
+    ? 'text-sm text-red-600 hover:underline dark:text-red-400'
+    : 'text-red-600 hover:underline dark:text-red-400';
+
+  return (
+    <div className={isMobile ? 'mt-3 flex gap-3' : ''}>
+      <button onClick={() => onEdit(task)} className={btnClass}>Edit</button>
+      <button onClick={() => onDelete(task)} className={deleteBtnClass}>Delete</button>
+    </div>
+  );
+}
+
 /**
  * Renders the list of tasks. Responsive:
  * - Table view on desktop
@@ -36,7 +62,7 @@ export default function TaskTable({ tasks, onEdit, onDelete }) {
                 <td className="px-4 py-3">
                   <div className="font-medium">{task.title}</div>
                   {task.description && (
-                    <div className="text-xs text-gray-500 line-clamp-1">{task.description}</div>
+                    <div className="text-xs text-gray-500 line-clamp-1 dark:text-gray-400">{task.description}</div>
                   )}
                 </td>
                 <td className="px-4 py-3">
@@ -46,14 +72,10 @@ export default function TaskTable({ tasks, onEdit, onDelete }) {
                   <Badge text={task.status} className={STATUS_STYLES[task.status]} />
                 </td>
                 <td className="px-4 py-3">
-                  <span className={isOverdue(task) ? 'font-medium text-red-600' : ''}>
-                    {formatDate(task.dueDate)}
-                    {isOverdue(task) && ' (Overdue)'}
-                  </span>
+                  <TaskDueDateDisplay task={task} />
                 </td>
                 <td className="px-4 py-3 text-right">
-                  <button onClick={() => onEdit(task)} className="mr-3 text-blue-600 hover:underline">Edit</button>
-                  <button onClick={() => onDelete(task)} className="text-red-600 hover:underline">Delete</button>
+                  <TaskActions task={task} onEdit={onEdit} onDelete={onDelete} />
                 </td>
               </tr>
             ))}
@@ -68,20 +90,17 @@ export default function TaskTable({ tasks, onEdit, onDelete }) {
             <div className="flex items-start justify-between">
               <div>
                 <p className="font-medium">{task.title}</p>
-                {task.description && <p className="text-xs text-gray-500">{task.description}</p>}
+                {task.description && <p className="text-xs text-gray-500 dark:text-gray-400">{task.description}</p>}
               </div>
             </div>
             <div className="mt-2 flex flex-wrap gap-2">
               <Badge text={task.priority} className={PRIORITY_STYLES[task.priority]} />
               <Badge text={task.status} className={STATUS_STYLES[task.status]} />
             </div>
-            <p className={`mt-2 text-sm ${isOverdue(task) ? 'font-medium text-red-600' : 'text-gray-500'}`}>
-              Due: {formatDate(task.dueDate)}{isOverdue(task) && ' (Overdue)'}
+            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+              <TaskDueDateDisplay task={task} prefix="Due: " />
             </p>
-            <div className="mt-3 flex gap-3">
-              <button onClick={() => onEdit(task)} className="text-sm text-blue-600">Edit</button>
-              <button onClick={() => onDelete(task)} className="text-sm text-red-600">Delete</button>
-            </div>
+            <TaskActions task={task} onEdit={onEdit} onDelete={onDelete} isMobile />
           </div>
         ))}
       </div>

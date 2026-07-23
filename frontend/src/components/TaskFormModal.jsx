@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { PRIORITIES, STATUSES } from '../utils/constants';
-import { validateTask } from '../utils/validateTask';
+import { validateTask, getTodayDateString } from '../utils/validateTask';
 
 const EMPTY = { title: '', description: '', priority: 'Medium', status: 'Pending', dueDate: '' };
 
@@ -20,7 +20,7 @@ export default function TaskFormModal({ open, onClose, onSubmit, task, submittin
         description: task.description || '',
         priority: task.priority,
         status: task.status,
-        dueDate: task.dueDate ? task.dueDate.slice(0, 10) : '',
+        dueDate: task.dueDate ? String(task.dueDate).slice(0, 10) : '',
       });
     } else {
       setForm(EMPTY);
@@ -33,7 +33,7 @@ export default function TaskFormModal({ open, onClose, onSubmit, task, submittin
   const handleChange = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
 
   const handleSubmit = () => {
-    const validationErrors = validateTask(form);
+    const validationErrors = validateTask(form, task);
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       return;
@@ -41,7 +41,7 @@ export default function TaskFormModal({ open, onClose, onSubmit, task, submittin
     onSubmit(form);
   };
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getTodayDateString();
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -107,7 +107,7 @@ export default function TaskFormModal({ open, onClose, onSubmit, task, submittin
               type="date"
               name="dueDate"
               value={form.dueDate}
-              min={today}
+              min={task ? undefined : today}
               onChange={handleChange}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-700"
             />

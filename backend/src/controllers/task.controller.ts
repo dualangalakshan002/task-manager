@@ -2,12 +2,25 @@ import { Request, Response } from 'express';
 import { query } from '../db/pool';
 import { ApiError } from '../utils/ApiError';
 import { asyncHandler } from '../utils/asyncHandler';
+import { getTodayDateString } from '../validators/task.validator';
+
+export interface TaskRow {
+  id: number;
+  user_id: number;
+  title: string;
+  description: string | null;
+  priority: string;
+  status: string;
+  due_date: string | Date;
+  created_at: string | Date;
+  updated_at: string | Date;
+}
 
 /**
  * Maps a DB row (snake_case) to the API shape (camelCase).
  * Keeps the wire format clean and decoupled from column names.
  */
-const toTask = (row: any) => ({
+const toTask = (row: TaskRow) => ({
   id: row.id,
   title: row.title,
   description: row.description,
@@ -142,6 +155,22 @@ export const updateTask = asyncHandler(async (req: Request, res: Response) => {
   const userId = req.userId!;
   const fields = req.body;
 
+  // If due date is being modified, ensure it is not being changed to a new past date.
+  if (fields.dueDate !== undefined) {
+    const existing = await query<TaskRow>(
+      'SELECT due_date FROM tasks WHERE id = $1 AND user_id = $2',
+      [req.params.id, userId]
+    );
+    if (existing.rows.length === 0) throw new ApiError(404, 'Task not found');
+
+    const existingDueDateStr = new Date(existing.rows[0].due_date).toISOString().slice(0, 10);
+    const newDueDateStr = String(fields.dueDate).slice(0, 10);
+
+    if (newDueDateStr !== existingDueDateStr && newDueDateStr < getTodayDateString()) {
+      throw new ApiError(400, 'Due date cannot be earlier than today');
+    }
+  }
+
   const columnMap: Record<string, string> = {
     title: 'title',
     description: 'description',
@@ -163,7 +192,7 @@ export const updateTask = asyncHandler(async (req: Request, res: Response) => {
   if (sets.length === 0) throw new ApiError(400, 'No valid fields to update');
 
   params.push(req.params.id, userId);
-  const result = await query(
+  const result = await query<TaskRow>(
     `UPDATE tasks SET ${sets.join(', ')}
      WHERE id = $${params.length - 1} AND user_id = $${params.length}
      RETURNING *`,
